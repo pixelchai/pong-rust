@@ -1,6 +1,7 @@
 use tetra::graphics::text::{Text, Font};
 use tetra::graphics::{self, Color, Texture};
 use tetra::math::Vec2;
+use tetra::input::{self, Key};
 use tetra::{Context, ContextBuilder, State};
 
 const SCREEN_WIDTH: i32 = 1280;
@@ -47,6 +48,16 @@ impl State for GameState {
         );
         graphics::draw(ctx, &text, Vec2::new((SCREEN_WIDTH/2) as f32, FONT_SIZE));
         graphics::draw(ctx, &self.player_paddle.paddle_texture, self.player_paddle.position);
+        Ok(())
+    }
+
+    fn update(&mut self, ctx: &mut Context) -> tetra::Result {
+        if input::is_key_down(ctx, Key::S) {
+            self.player_paddle.position.y += 16.0;
+        }
+        if input::is_key_down(ctx, Key::W) {
+            self.player_paddle.position.y -= 16.0;
+        }
         Ok(())
     }
 }
