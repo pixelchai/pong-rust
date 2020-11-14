@@ -1,0 +1,16 @@
+Error message when trying to cast returned value to float:
+error[E0382]: borrow of moved value: `paddle_texture`
+  --> src/main.rs:34:72
+   |
+30 |         let paddle_texture = Texture::new(ctx, "res/paddle.png")?;
+   |             -------------- move occurs because `paddle_texture` has type `tetra::graphics::texture::Texture`, which does not implement the `Copy` trait
+...
+33 |                 paddle_texture: paddle_texture,
+   |                                 -------------- value moved here
+34 |                 position: Vec2::new((SCREEN_WIDTH as f32) - PADDING - (paddle_texture.width() as f32), PADDING),
+   |                                                                        ^^^^^^^^^^^^^^ value borrowed here after move
+
+error: aborting due to previous error
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `pong`.
