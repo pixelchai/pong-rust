@@ -12,16 +12,8 @@ const PADDLE_SPEED: f32 = 16.0;
 
 struct Paddle {
     paddle_texture: Texture,
-    position: Vec2<f32>,
+    position: Vec2<f32>,    
 }
-
-// impl Paddle {
-//     fn new(texture: Texture, position: Vec2<f32>) -> Paddle {
-//         Paddle {
-//             paddle_texture,
-//         }
-//     }
-// }
 
 struct GameState {
     player_paddle: Paddle,
@@ -44,6 +36,10 @@ impl GameState {
             }
         })
     }
+
+    fn draw_paddle(ctx: &mut Context, paddle: &Paddle){
+        graphics::draw(ctx, &paddle.paddle_texture, paddle.position)
+    }
 }
 
 impl State for GameState {
@@ -54,8 +50,8 @@ impl State for GameState {
             Font::vector(ctx, "res/vcr_osd_mono.ttf", FONT_SIZE)?,
         );
         graphics::draw(ctx, &text, Vec2::new((SCREEN_WIDTH/2) as f32, FONT_SIZE));
-        graphics::draw(ctx, &self.player_paddle.paddle_texture, self.player_paddle.position);
-        graphics::draw(ctx, &self.enemy_paddle.paddle_texture, self.enemy_paddle.position);
+        GameState::draw_paddle(ctx, &self.enemy_paddle);
+        GameState::draw_paddle(ctx, &self.player_paddle);
         Ok(())
     }
 
