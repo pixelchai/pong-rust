@@ -8,6 +8,7 @@ const SCREEN_WIDTH: i32 = 1280;
 const SCREEN_HEIGHT: i32 = 720;
 const FONT_SIZE: f32 = 32.0;
 const PADDING: f32 = FONT_SIZE;
+const PADDLE_SPEED: f32 = 16.0;
 
 struct Paddle {
     paddle_texture: Texture,
@@ -24,16 +25,22 @@ struct Paddle {
 
 struct GameState {
     player_paddle: Paddle,
+    enemy_paddle: Paddle,
 }
 
 impl GameState {
     fn new(ctx: &mut Context) -> tetra::Result<GameState> {
         let paddle_texture = Texture::new(ctx, "res/paddle.png")?;
-        let paddle_texture_width = paddle_texture.width(); // see notes.txt -- todo research error msg
+
+        // Todo: research lifetimes, cloning, ownership, etc
         Ok(GameState {
             player_paddle: Paddle {
-                paddle_texture: paddle_texture,
-                position: Vec2::new((SCREEN_WIDTH as f32) - PADDING - (paddle_texture_width as f32), PADDING),
+                paddle_texture: paddle_texture.clone(),
+                position: Vec2::new((SCREEN_WIDTH as f32) - PADDING - (paddle_texture.width() as f32), PADDING),
+            },
+            enemy_paddle: Paddle {
+                paddle_texture: paddle_texture.clone(),
+                position: Vec2::new(PADDING, (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0),
             }
         })
     }
@@ -48,15 +55,16 @@ impl State for GameState {
         );
         graphics::draw(ctx, &text, Vec2::new((SCREEN_WIDTH/2) as f32, FONT_SIZE));
         graphics::draw(ctx, &self.player_paddle.paddle_texture, self.player_paddle.position);
+        graphics::draw(ctx, &self.enemy_paddle.paddle_texture, self.enemy_paddle.position);
         Ok(())
     }
 
     fn update(&mut self, ctx: &mut Context) -> tetra::Result {
         if input::is_key_down(ctx, Key::S) {
-            self.player_paddle.position.y += 16.0;
+            self.player_paddle.position.y += PADDLE_SPEED;
         }
         if input::is_key_down(ctx, Key::W) {
-            self.player_paddle.position.y -= 16.0;
+            self.player_paddle.position.y -= PADDLE_SPEED;
         }
         Ok(())
     }
