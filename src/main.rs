@@ -15,14 +15,24 @@ struct Paddle {
     position: Vec2<f32>,    
 }
 
+struct Ball {
+    ball_texture: Texture,
+    position: Vec2<f32>,    
+}
+
 struct GameState {
     player_paddle: Paddle,
     enemy_paddle: Paddle,
+    ball: Ball,
 }
 
 impl GameState {
     fn new(ctx: &mut Context) -> tetra::Result<GameState> {
         let paddle_texture = Texture::new(ctx, "res/paddle.png")?;
+        let ball_texture = Texture::new(ctx, "res/ball.png")?;
+
+        let ball_texture_width = ball_texture.width();
+        let ball_texture_height = ball_texture.height();
 
         // Todo: research lifetimes, cloning, ownership, etc
         Ok(GameState {
@@ -33,6 +43,10 @@ impl GameState {
             enemy_paddle: Paddle {
                 paddle_texture: paddle_texture.clone(),
                 position: Vec2::new(PADDING, (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0),
+            },
+            ball: Ball {
+                ball_texture: ball_texture,
+                position: Vec2::new((SCREEN_WIDTH as f32)/2.0 - (ball_texture_width as f32)/2.0, (SCREEN_HEIGHT as f32)/2.0 - (ball_texture_height as f32)/2.0),
             }
         })
     }
@@ -50,8 +64,11 @@ impl State for GameState {
             Font::vector(ctx, "res/vcr_osd_mono.ttf", FONT_SIZE)?,
         );
         graphics::draw(ctx, &text, Vec2::new((SCREEN_WIDTH/2) as f32, FONT_SIZE));
+
         GameState::draw_paddle(ctx, &self.enemy_paddle);
         GameState::draw_paddle(ctx, &self.player_paddle);
+
+        graphics::draw(ctx, &self.ball.ball_texture, self.ball.position);
         Ok(())
     }
 
