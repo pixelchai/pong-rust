@@ -9,6 +9,7 @@ const SCREEN_HEIGHT: i32 = 720;
 const FONT_SIZE: f32 = 32.0;
 const PADDING: f32 = FONT_SIZE;
 const PADDLE_SPEED: f32 = 16.0;
+const BALL_SPEED: f32 = PADDLE_SPEED/2.0;
 
 struct Paddle {
     paddle_texture: Texture,
@@ -18,6 +19,7 @@ struct Paddle {
 struct Ball {
     ball_texture: Texture,
     position: Vec2<f32>,    
+    velocity: Vec2<f32>,
 }
 
 struct GameState {
@@ -45,14 +47,36 @@ impl GameState {
                 position: Vec2::new(PADDING, (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0),
             },
             ball: Ball {
-                ball_texture: ball_texture,
+                ball_texture,
                 position: Vec2::new((SCREEN_WIDTH as f32)/2.0 - (ball_texture_width as f32)/2.0, (SCREEN_HEIGHT as f32)/2.0 - (ball_texture_height as f32)/2.0),
+                velocity: Vec2::new(BALL_SPEED, -BALL_SPEED),
             }
         })
     }
 
     fn draw_paddle(ctx: &mut Context, paddle: &Paddle){
         graphics::draw(ctx, &paddle.paddle_texture, paddle.position)
+    }
+
+    fn handle_inputs(&mut self, ctx: &mut Context){
+        if input::is_key_down(ctx, Key::S) {
+            self.player_paddle.position.y += PADDLE_SPEED;
+        }
+        if input::is_key_down(ctx, Key::W) {
+            self.player_paddle.position.y -= PADDLE_SPEED;
+        }
+    }
+
+    fn update_ball(&mut self, ctx: &mut Context){
+        self.ball.position += self.ball.velocity;
+
+        if self.ball.position[1] >= (SCREEN_HEIGHT as f32) - (self.ball.ball_texture.height() as f32) || self.ball.position[1] <= 0.0 {
+            self.ball.velocity[1] = -self.ball.velocity[1];
+        }
+
+        if self.ball.position[0] >= (SCREEN_WIDTH as f32) - (self.ball.ball_texture.width() as f32) || self.ball.position[0] <= 0.0 {
+            self.ball.velocity[0] = -self.ball.velocity[0];
+        }
     }
 }
 
@@ -73,12 +97,8 @@ impl State for GameState {
     }
 
     fn update(&mut self, ctx: &mut Context) -> tetra::Result {
-        if input::is_key_down(ctx, Key::S) {
-            self.player_paddle.position.y += PADDLE_SPEED;
-        }
-        if input::is_key_down(ctx, Key::W) {
-            self.player_paddle.position.y -= PADDLE_SPEED;
-        }
+        self.handle_inputs(ctx);
+        self.update_ball(ctx);
         Ok(())
     }
 }
