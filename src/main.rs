@@ -36,20 +36,19 @@ impl GameState {
         let ball_texture_width = ball_texture.width();
         let ball_texture_height = ball_texture.height();
 
-        // Todo: research lifetimes, cloning, ownership, etc
         Ok(GameState {
             player_paddle: Paddle {
                 paddle_texture: paddle_texture.clone(),
-                position: Vec2::new((SCREEN_WIDTH as f32) - PADDING - (paddle_texture.width() as f32), (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 + 100.0),
+                position: Vec2::new((SCREEN_WIDTH as f32) - PADDING - (paddle_texture.width() as f32), (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 - 25.0),
             },
             enemy_paddle: Paddle {
                 paddle_texture: paddle_texture.clone(),
-                position: Vec2::new(PADDING, (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0),
+                position: Vec2::new(PADDING, (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 + 30.0),
             },
             ball: Ball {
                 ball_texture,
                 position: Vec2::new((SCREEN_WIDTH as f32)/2.0 - (ball_texture_width as f32)/2.0, (SCREEN_HEIGHT as f32)/2.0 - (ball_texture_height as f32)/2.0),
-                velocity: Vec2::new(BALL_SPEED, BALL_SPEED),
+                velocity: Vec2::new(-BALL_SPEED, BALL_SPEED*2.0),
             }
         })
     }
@@ -70,13 +69,23 @@ impl GameState {
     fn update_ball(&mut self, ctx: &mut Context){
         self.ball.position += self.ball.velocity;
 
+        // enemy paddle
         // bouncing off enemy paddle horizontally
+        // NB: ball colliding with left side of paddle is not considered
         if self.ball.position[1] + (self.ball.ball_texture.height() as f32)  >= self.enemy_paddle.position[1] && self.ball.position[1] <= self.enemy_paddle.position[1] + (self.enemy_paddle.paddle_texture.height() as f32){
             if self.ball.position[0] <= self.enemy_paddle.position[0] + (self.enemy_paddle.paddle_texture.width() as f32){
                 self.ball.velocity[0] = -self.ball.velocity[0];
             }
         }
 
+        // bouncing off enemy paddle vertically
+        if (self.ball.position[0] + (self.ball.ball_texture.width() as f32) >= self.enemy_paddle.position[0]) && (self.ball.position[0] <= self.enemy_paddle.position[0] + (self.enemy_paddle.paddle_texture.width() as f32)){
+            if (self.ball.position[1] <= self.enemy_paddle.position[1] + (self.enemy_paddle.paddle_texture.height() as f32)) && (self.ball.position[1] + (self.ball.ball_texture.height() as f32) >= self.enemy_paddle.position[1]) {
+                self.ball.velocity[1] = -self.ball.velocity[1];
+            }
+        }
+
+        // // player paddle
         // bouncing off player paddle horizontally
         if self.ball.position[1] + (self.ball.ball_texture.height() as f32)  >= self.player_paddle.position[1] && self.ball.position[1] <= self.player_paddle.position[1] + (self.player_paddle.paddle_texture.height() as f32){
             if self.ball.position[0] + (self.ball.ball_texture.width() as f32) >= self.player_paddle.position[0] {
@@ -84,15 +93,22 @@ impl GameState {
             }
         }
 
+        if (self.ball.position[0] + (self.ball.ball_texture.width() as f32) >= self.player_paddle.position[0]) && (self.ball.position[0] <= self.player_paddle.position[0] + (self.player_paddle.paddle_texture.width() as f32)){
+            if (self.ball.position[1] <= self.player_paddle.position[1] + (self.player_paddle.paddle_texture.height() as f32)) && (self.ball.position[1] + (self.ball.ball_texture.height() as f32) >= self.player_paddle.position[1]) {
+                self.ball.velocity[1] = -self.ball.velocity[1];
+            }
+        }
+
+
+        // walls
         // bouncing off top and bottom walls
-        if self.ball.position[1] >= (SCREEN_HEIGHT as f32) - (self.ball.ball_texture.height() as f32) || self.ball.position[1] <= 0.0 {
+        if (self.ball.position[1] + (self.ball.ball_texture.height() as f32) >= (SCREEN_HEIGHT as f32)) || self.ball.position[1] <= 0.0 {
             self.ball.velocity[1] = -self.ball.velocity[1];
         }
 
         // bouncing off side walls (= game over)
-        if self.ball.position[0] >= (SCREEN_WIDTH as f32) - (self.ball.ball_texture.width() as f32) || self.ball.position[0] <= 0.0 {
+        if (self.ball.position[0] + (self.ball.ball_texture.width() as f32) >= (SCREEN_WIDTH as f32)) || self.ball.position[0] <= 0.0 {
             self.ball.velocity[0] = -self.ball.velocity[0];
-            // println!("Game over");
         }
     }
 }
