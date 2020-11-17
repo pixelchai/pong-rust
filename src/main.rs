@@ -16,15 +16,6 @@ struct Paddle {
     position: Vec2<f32>,    
 }
 
-impl Paddle {
-    fn copy(&mut self) -> Paddle{
-        Paddle {
-            paddle_texture: self.paddle_texture,
-            position: self.position,
-        }
-    }
-}
-
 struct Ball {
     ball_texture: Texture,
     position: Vec2<f32>,    
@@ -62,7 +53,7 @@ impl GameState {
         })
     }
 
-    fn draw_paddle(ctx: &mut Context, paddle: &mut Paddle){
+    fn draw_paddle(ctx: &mut Context, paddle: &Paddle){
         graphics::draw(ctx, &paddle.paddle_texture, paddle.position)
     }
 
@@ -77,16 +68,16 @@ impl GameState {
 
 
     /// Check for ball-paddle collision with the given paddle and update the ball's velocity vector accordingly
-    fn update_collision(&mut self, paddle: &Paddle){
-        if self.ball.position[1] + (self.ball.ball_texture.height() as f32)  >= paddle.position[1] && self.ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32){
-            if self.ball.position[0] + (self.ball.ball_texture.width() as f32) >= paddle.position[0] {
-                self.ball.velocity[0] = -self.ball.velocity[0];
+    fn update_collision(ball: &mut Ball, paddle: &Paddle){
+        if ball.position[1] + (ball.ball_texture.height() as f32)  >= paddle.position[1] && ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32){
+            if ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0] {
+                ball.velocity[0] = -ball.velocity[0];
             }
         }
 
-        if (self.ball.position[0] + (self.ball.ball_texture.width() as f32) >= paddle.position[0]) && (self.ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
-            if (self.ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32)) && (self.ball.position[1] + (self.ball.ball_texture.height() as f32) >= paddle.position[1]) {
-                self.ball.velocity[1] = -self.ball.velocity[1];
+        if (ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0]) && (ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
+            if (ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32)) && (ball.position[1] + (ball.ball_texture.height() as f32) >= paddle.position[1]) {
+                ball.velocity[1] = -ball.velocity[1];
             }
         }
     }
@@ -124,8 +115,8 @@ impl GameState {
         //     }
         // }
         
-        self.update_collision(&self.enemy_paddle);
-        self.update_collision(&self.player_paddle);
+        GameState::update_collision(&mut self.ball, &self.enemy_paddle);
+        GameState::update_collision(&mut self.ball, &self.player_paddle);
 
         // walls
         // bouncing off top and bottom walls
