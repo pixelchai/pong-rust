@@ -92,11 +92,18 @@ impl GameState {
     }
 
     fn handle_inputs(&mut self, ctx: &mut Context){
+        if input::is_key_down(ctx, Key::W) {
+            self.player_paddle.position.y -= PADDLE_SPEED;
+        }
         if input::is_key_down(ctx, Key::S) {
             self.player_paddle.position.y += PADDLE_SPEED;
         }
-        if input::is_key_down(ctx, Key::W) {
-            self.player_paddle.position.y -= PADDLE_SPEED;
+
+        if input::is_key_down(ctx, Key::O) {
+            self.enemy_paddle.position.y -= PADDLE_SPEED;
+        }
+        if input::is_key_down(ctx, Key::L) {
+            self.enemy_paddle.position.y += PADDLE_SPEED;
         }
     }
 
@@ -147,10 +154,14 @@ impl GameState {
             } else {
                 // bounced off right wall
                 self.enemy_score += 1;
+                self.ball.velocity = Vec2::new(BALL_SPEED, BALL_SPEED);
             }
 
             // reset ball to centre
             self.ball.reset();
+            
+            // reset ball speed (but not direction)
+            self.ball.velocity = self.ball.velocity.normalized() * BALL_SPEED;
         }
     }
 }
