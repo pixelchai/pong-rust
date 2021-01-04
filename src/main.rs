@@ -22,34 +22,53 @@ struct Ball {
     velocity: Vec2<f32>,
 }
 
+impl Ball {
+    fn reset(&mut self){
+        self.position = Vec2::new(
+            (SCREEN_WIDTH as f32)/2.0 - (self.ball_texture.width() as f32)/2.0,
+            (SCREEN_HEIGHT as f32)/2.0 - (self.ball_texture.height() as f32)/2.0
+        );
+    }
+}
+
 struct GameState {
-    player_paddle: Paddle,
-    enemy_paddle: Paddle,
     ball: Ball,
+
+    player_paddle: Paddle,
+    player_score: i32,
+
+    enemy_paddle: Paddle,
+    enemy_score: i32,
+
+    simulated: bool,
 }
 
 impl GameState {
     fn new(ctx: &mut Context) -> tetra::Result<GameState> {
         let paddle_texture = Texture::new(ctx, "res/paddle.png")?;
         let ball_texture = Texture::new(ctx, "res/ball.png")?;
-
-        let ball_texture_width = ball_texture.width();
-        let ball_texture_height = ball_texture.height();
+        
+        // init ball
+        let mut ball = Ball {
+            ball_texture,
+            position: Vec2::new(0.0, 0.0),
+            velocity:  Vec2::new(BALL_SPEED, BALL_SPEED),
+        };
+        ball.reset();  // initialise ball's position
 
         Ok(GameState {
+            ball,
             player_paddle: Paddle {
                 paddle_texture: paddle_texture.clone(),
                 position: Vec2::new((SCREEN_WIDTH as f32) - PADDING - (paddle_texture.width() as f32), (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 - 25.0),
             },
+            player_score: 0,
             enemy_paddle: Paddle {
                 paddle_texture: paddle_texture.clone(),
                 position: Vec2::new(PADDING, (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 + 30.0),
             },
-            ball: Ball {
-                ball_texture,
-                position: Vec2::new((SCREEN_WIDTH as f32)/2.0 - (ball_texture_width as f32)/2.0, (SCREEN_HEIGHT as f32)/2.0 - (ball_texture_height as f32)/2.0),
-                velocity: Vec2::new(BALL_SPEED, BALL_SPEED),
-            }
+            enemy_score: 0,
+            simulated: false,
         })
     }
 
@@ -73,13 +92,18 @@ impl GameState {
         if ball.position[1] + (ball.ball_texture.height() as f32)  >= paddle.position[1] && ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32){
             if ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0] && (ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
                 ball.velocity[0] = -ball.velocity[0];
+                println!("Bounced off paddle horizontally!");
             }
         }
 
         // bouncing off paddle vertically
         if (ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0]) && (ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
             if (ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32)) && (ball.position[1] + (ball.ball_texture.height() as f32) >= paddle.position[1]) {
-                ball.velocity[1] = -ball.velocity[1];
+                // ball.velocity[1] = -ball.velocity[1];
+                ball.velocity[0] = -ball.velocity[0];
+                println!("Bounced off paddle vertically!");
+
+
             }
         }
     }
@@ -96,9 +120,18 @@ impl GameState {
             self.ball.velocity[1] = -self.ball.velocity[1];
         }
 
-        // bouncing off side walls (= game over)
-        if (self.ball.position[0] + (self.ball.ball_texture.width() as f32) >= (SCREEN_WIDTH as f32)) || self.ball.position[0] <= 0.0 {
-            self.ball.velocity[0] = -self.ball.velocity[0];
+        // if bounce off either of the side walls...
+        if self.ball.position[0] + (self.ball.ball_texture.width() as f32) >= (SCREEN_WIDTH as f32) || self.ball.position[0] <= 0.0 {
+            if self.ball.position[0] <= 0.0 {
+                // bounced off left wall
+                self.player_score += 1;
+            } else {
+                // bounced off right wall
+                self.enemy_score += 1;
+            }
+
+            // reset ball to centre
+            self.ball.reset();
         }
     }
 }
@@ -107,7 +140,7 @@ impl State for GameState {
     fn draw(&mut self, ctx: &mut Context) -> tetra::Result {
         graphics::clear(ctx, Color::rgb(0.0, 0.0, 0.0));
         let text = Text::new(
-            "1-1",
+            format!("{}-{}", self.enemy_score, self.player_score),
             Font::vector(ctx, "res/vcr_osd_mono.ttf", FONT_SIZE)?,
         );
         graphics::draw(ctx, &text, Vec2::new((SCREEN_WIDTH/2) as f32, FONT_SIZE));
@@ -127,8 +160,9 @@ impl State for GameState {
 }
 
 fn main() -> tetra::Result {
+    let mut gs = GameState::new;
     ContextBuilder::new("Pong", SCREEN_WIDTH, SCREEN_HEIGHT)
         .quit_on_escape(true)
         .build()?
-        .run(GameState::new)
+        .run(gs)
 }
