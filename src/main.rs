@@ -45,6 +45,7 @@ struct GameState {
 
 impl GameState {
     fn new(ctx: &mut Context) -> tetra::Result<GameState> {
+        // init textures
         let paddle_texture = Texture::new(ctx, "res/paddle.png")?;
         let ball_texture = Texture::new(ctx, "res/ball.png")?;
         
@@ -52,9 +53,12 @@ impl GameState {
         let mut ball = Ball {
             ball_texture,
             position: Vec2::new(0.0, 0.0),
-            velocity:  Vec2::new(BALL_SPEED, BALL_SPEED),
+            velocity: Vec2::new(BALL_SPEED, BALL_SPEED),
         };
         ball.reset();  // initialise ball's position
+
+        // calculate paddle initial y
+        let paddle_initial_y = (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0;
 
         Ok(GameState {
             ball,
@@ -62,7 +66,7 @@ impl GameState {
                 paddle_texture: paddle_texture.clone(),
                 position: Vec2::new(
                     (SCREEN_WIDTH as f32) - PADDING - (paddle_texture.width() as f32), 
-                    (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 - 25.0
+                    paddle_initial_y,
                 ),
             },
             player_score: 0,
@@ -70,7 +74,7 @@ impl GameState {
                 paddle_texture: paddle_texture.clone(),
                 position: Vec2::new(
                     PADDING, 
-                    (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 + 30.0
+                    paddle_initial_y,
                 ),
             },
             enemy_score: 0,
@@ -92,70 +96,40 @@ impl GameState {
     }
 
     /// Check for ball-paddle collision with the given paddle
-    fn check_intersects(ball: &Ball, paddle: &Paddle) -> bool{
-        // // bouncing off paddle horizontally
-        // if ball.position[1] + (ball.ball_texture.height() as f32)  >= paddle.position[1] && ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32){
-        //     if ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0] && (ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
-        //         ball.velocity[0] = -ball.velocity[0];
-        //         println!("Bounced off paddle horizontally!");
-        //     }
-        // }
-
-        // // bouncing off paddle vertically
-        // if (ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0]) && (ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
-        //     if (ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32)) && (ball.position[1] + (ball.ball_texture.height() as f32) >= paddle.position[1]) {
-        //         // ball.velocity[1] = -ball.velocity[1];
-        //         ball.velocity[0] = -ball.velocity[0];
-        //         println!("Bounced off paddle vertically!");
-
-
-        //     }
-        // }
-        
+    fn check_intersects(ball: &Ball, paddle: &Paddle) -> bool{        
         // check if ball's centre point is inside paddle rectangle:
         // method adapted from: https://stackoverflow.com/a/2763387/5013267
-        // let ab = Vec2::new(paddle.paddle_texture.width() as f32, 0.0); // vector a->b
-        let ab = (paddle.position + (paddle.paddle_texture.width() as f32, 0.0)) - paddle.position;
+        let ab = Vec2::new(paddle.paddle_texture.width() as f32, 0.0); // vector a->b
         let bc = Vec2::new(0.0, paddle.paddle_texture.height() as f32); // vector b->c
 
-        let m = (ball.position + Vec2::new(ball.ball_texture.width() as f32, ball.ball_texture.height() as f32))/2.0;
-        // println!("{}", m);
+        let m = ball.position + Vec2::new(ball.ball_texture.width() as f32, ball.ball_texture.height() as f32)/2.0;
 
-        // let mut intersects = true;
         let ab_dot_am = ab.dot(m - paddle.position);
-        // println!("{}", ab_dot_am);
-        // println!("{}", m - paddle.position);
-        println!("{} - {} = {} ", m, paddle.position, m - paddle.position);
-        // intersects &= ab_dot_am >= 0.0 && ab_dot_am <= ab.dot(ab);
-
         let bc_dot_bm = bc.dot(m - (paddle.position + (paddle.paddle_texture.width() as f32, 0.0)));
-        // intersects &= bc_dot_bm >= 0.0 && bc_dot_bm <= bc.dot(bc);
-        // println!("{}, {}", ab_dot_am >= 0.0 && ab_dot_am <= ab.dot(ab), bc_dot_bm >= 0.0 && bc_dot_bm <= bc.dot(bc));
 
+        // return value:
         0.0 <= ab_dot_am && ab_dot_am <= ab.dot(ab)
-        && 0.0 <= bc_dot_bm && bc_dot_bm <= bc.dot(bc)  // return value
+        && 0.0 <= bc_dot_bm && bc_dot_bm <= bc.dot(bc)
     }
 
     fn update_ball(&mut self, ctx: &mut Context){
         self.ball.position += self.ball.velocity;
 
-        // GameState::update_collision(&mut self.ball, &self.enemy_paddle);
-        // GameState::update_collision(&mut self.ball, &self.player_paddle);
-        // if GameState::check_intersects(&self.ball, &self.enemy_paddle) {
-        //     println!("WOOOO enemy paddle!!");
-        // }
+        if GameState::check_intersects(&self.ball, &self.enemy_paddle) {
+            println!("WOOOO enemy paddle!!");
+        }
 
         if GameState::check_intersects(&self.ball, &self.player_paddle) {
             println!("WOOOO player paddle!!");
         }
 
         // walls
-        // bouncing off top and bottom walls
+        // if bouncing off top or bottom walls...
         if (self.ball.position[1] + (self.ball.ball_texture.height() as f32) >= (SCREEN_HEIGHT as f32)) || self.ball.position[1] <= 0.0 {
             self.ball.velocity[1] = -self.ball.velocity[1];
         }
 
-        // if bounce off either of the side walls...
+        // if bouncing off either of the side walls...
         if self.ball.position[0] + (self.ball.ball_texture.width() as f32) >= (SCREEN_WIDTH as f32) || self.ball.position[0] <= 0.0 {
             if self.ball.position[0] <= 0.0 {
                 // bounced off left wall
@@ -195,9 +169,8 @@ impl State for GameState {
 }
 
 fn main() -> tetra::Result {
-    let mut gs = GameState::new;
     ContextBuilder::new("Pong", SCREEN_WIDTH, SCREEN_HEIGHT)
         .quit_on_escape(true)
         .build()?
-        .run(gs)
+        .run(GameState::new)
 }
