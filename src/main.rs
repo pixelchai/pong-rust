@@ -4,12 +4,17 @@ use tetra::math::Vec2;
 use tetra::input::{self, Key};
 use tetra::{Context, ContextBuilder, State};
 
+// visual consts
 const SCREEN_WIDTH: i32 = 1280;
 const SCREEN_HEIGHT: i32 = 720;
 const FONT_SIZE: f32 = 32.0;
 const PADDING: f32 = FONT_SIZE;
-const PADDLE_SPEED: f32 = 16.0;
+
+// gameplay consts
+const PADDLE_SPEED: f32 = 10.0;
 const BALL_SPEED: f32 = PADDLE_SPEED/2.0;
+const PADDLE_SPIN: f32 = 3.0;
+const BALL_ACC: f32 = 0.005;
 
 struct Paddle {
     paddle_texture: Texture,
@@ -112,16 +117,21 @@ impl GameState {
         && 0.0 <= bc_dot_bm && bc_dot_bm <= bc.dot(bc)
     }
 
-    fn update_ball(&mut self, ctx: &mut Context){
+    fn update_collision(ball: &mut Ball, paddle: &Paddle){
+        if GameState::check_intersects(ball, &paddle){
+            ball.velocity.x = -(ball.velocity.x + (BALL_ACC * ball.velocity.x.signum()));
+
+            let offset = (paddle.position.y - ball.position.y) / paddle.paddle_texture.height() as f32;
+            ball.velocity.y += PADDLE_SPIN * -offset;
+            println!("woo");
+        }
+    }
+
+    fn update_ball(&mut self, _ctx: &mut Context){
         self.ball.position += self.ball.velocity;
 
-        if GameState::check_intersects(&self.ball, &self.enemy_paddle) {
-            println!("WOOOO enemy paddle!!");
-        }
-
-        if GameState::check_intersects(&self.ball, &self.player_paddle) {
-            println!("WOOOO player paddle!!");
-        }
+        GameState::update_collision(&mut self.ball, &self.player_paddle);
+        GameState::update_collision(&mut self.ball, &self.enemy_paddle);
 
         // walls
         // if bouncing off top or bottom walls...
