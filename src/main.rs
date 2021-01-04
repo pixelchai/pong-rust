@@ -1,5 +1,5 @@
 use tetra::graphics::text::{Text, Font};
-use tetra::graphics::{self, Color, Texture};
+use tetra::graphics::{self, Color, Texture, DrawParams};
 use tetra::math::Vec2;
 use tetra::input::{self, Key};
 use tetra::{Context, ContextBuilder, State};
@@ -18,7 +18,8 @@ const BALL_ACC: f32 = 0.005;
 
 // AI constants
 const AI_ENABLED: bool = true;
-const AI_ITERS: u32 = 10;
+const AI_MAX_ITERS: u32 = 900; // Experimentation results: around 800 is probably more than sufficient,
+                               // 400 is quite good though is insufficient for a short time after ball leaves enemy paddle
 
 #[derive(Clone)]
 struct Paddle {
@@ -52,6 +53,7 @@ struct GameState {
     enemy_score: i32,
 
     simulated: bool,
+    enemy_hit: bool,  // used when simulating
 }
 
 impl GameState {
@@ -90,6 +92,7 @@ impl GameState {
             },
             enemy_score: 0,
             simulated: false,
+            enemy_hit: false,
         })
     }
 
@@ -105,7 +108,8 @@ impl GameState {
             self.player_paddle.position.y += PADDLE_SPEED;
         }
 
-        if !AI_ENABLED {
+        // if !AI_ENABLED {
+        if !false {
             if input::is_key_down(ctx, Key::O) {
                 self.enemy_paddle.position.y -= PADDLE_SPEED;
             }
@@ -116,7 +120,7 @@ impl GameState {
     }
 
     /// Check for ball-paddle collision with the given paddle
-    fn check_intersects(ball: &Ball, paddle: &Paddle) -> bool{        
+    fn check_intersects(ball: &Ball, paddle: &Paddle) -> bool{   
         // check if ball's centre point is inside paddle rectangle:
         // method adapted from: https://stackoverflow.com/a/2763387/5013267
         let ab = Vec2::new(paddle.paddle_texture.width() as f32, 0.0); // vector a->b
@@ -132,21 +136,40 @@ impl GameState {
         && 0.0 <= bc_dot_bm && bc_dot_bm <= bc.dot(bc)
     }
 
+    fn apply_collision_response(ball: &mut Ball, paddle: &Paddle){
+        ball.velocity.x = -(ball.velocity.x + (BALL_ACC * ball.velocity.x.signum()));
+
+        let offset = (paddle.position.y - ball.position.y) / paddle.paddle_texture.height() as f32;
+        ball.velocity.y += PADDLE_SPIN * -offset;
+    }
+
     fn update_collision(ball: &mut Ball, paddle: &Paddle){
         if GameState::check_intersects(ball, &paddle){
-            ball.velocity.x = -(ball.velocity.x + (BALL_ACC * ball.velocity.x.signum()));
-
-            let offset = (paddle.position.y - ball.position.y) / paddle.paddle_texture.height() as f32;
-            ball.velocity.y += PADDLE_SPIN * -offset;
+            GameState::apply_collision_response(ball, paddle);
         }
     }
 
     fn update_ball(&mut self, _ctx: &mut Context){
-        self.update_AI(_ctx);
+        self.update_ai(_ctx);
         self.ball.position += self.ball.velocity;
 
-        GameState::update_collision(&mut self.ball, &self.player_paddle);
-        GameState::update_collision(&mut self.ball, &self.enemy_paddle);
+        if !self.simulated {
+            GameState::update_collision(&mut self.ball, &self.player_paddle);
+            GameState::update_collision(&mut self.ball, &self.enemy_paddle);
+        }else {
+            // if simulated, use simplified calculations
+            // (always assume ball hits player paddle, otherwise AI would win anyway)
+            // only need to check player paddle
+            if self.ball.position.x + ((self.ball.ball_texture.width() as f32)/2.0) >= self.player_paddle.position.x {
+                GameState::apply_collision_response(&mut self.ball, &mut self.player_paddle);
+            }
+            
+            // check reaches enemy's side (so that iteration can be terminated)
+            if self.ball.position.x <= self.enemy_paddle.position.x + self.enemy_paddle.paddle_texture.width() as f32 {
+                self.enemy_hit = true;
+                return;  // no need to do rest of update calculations
+            }
+        }
 
         // walls
         // if bouncing off top or bottom walls...
@@ -173,13 +196,12 @@ impl GameState {
         }
     }
 
-    fn update_AI(&mut self, ctx: &mut Context){
+    fn update_ai(&mut self, ctx: &mut Context){
         if self.simulated || !AI_ENABLED {
             return;
         }
 
         // created a simulated GameState, cloned from real GameState
-        println!("Created sim {:p}", &self);
         let mut sim = GameState {
             ball: self.ball.clone(),
             player_paddle: self.player_paddle.clone(),
@@ -187,15 +209,19 @@ impl GameState {
             enemy_paddle: self.enemy_paddle.clone(),
             enemy_score: self.enemy_score,
             simulated: true,
+            enemy_hit: false,
         };
 
-        for i in 0..AI_ITERS {
-            sim.update(ctx).expect("bruh moment when updating sim");
-            sim.draw(ctx).expect("bruh moment when drawing sim");
-            println!("\t Sim iteration: {}", i);
+        for i in 0..AI_MAX_ITERS {
+            if !sim.enemy_hit {
+                sim.update(ctx).expect("bruh moment when updating sim");
+                // sim.draw(ctx).expect("bruh moment when drawing sim");
+            } else {
+                // if enemy_hit, stop iterating: found solution
+                println!("Found sol!! {}", self.ball.position.x);
+                break;
+            }
         }
-        println!("Byebye sim");
-        // self.simulated = true;
     }
 }
 
@@ -211,7 +237,15 @@ impl State for GameState {
         GameState::draw_paddle(ctx, &self.enemy_paddle);
         GameState::draw_paddle(ctx, &self.player_paddle);
 
-        graphics::draw(ctx, &self.ball.ball_texture, self.ball.position);
+        if !self.simulated {
+            graphics::draw(ctx, &self.ball.ball_texture, self.ball.position);
+        } else {
+            // for debugging, render simulated run in different shade 
+            // (visualisation may not be used in final version)
+            graphics::draw(ctx, &self.ball.ball_texture, DrawParams::new()
+            .position(self.ball.position)
+            .color(Color::rgb(1.0, 0.0, 0.0)));
+        }
         Ok(())
     }
 
