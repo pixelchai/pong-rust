@@ -60,12 +60,18 @@ impl GameState {
             ball,
             player_paddle: Paddle {
                 paddle_texture: paddle_texture.clone(),
-                position: Vec2::new((SCREEN_WIDTH as f32) - PADDING - (paddle_texture.width() as f32), (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 - 25.0),
+                position: Vec2::new(
+                    (SCREEN_WIDTH as f32) - PADDING - (paddle_texture.width() as f32), 
+                    (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 - 25.0
+                ),
             },
             player_score: 0,
             enemy_paddle: Paddle {
                 paddle_texture: paddle_texture.clone(),
-                position: Vec2::new(PADDING, (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 + 30.0),
+                position: Vec2::new(
+                    PADDING, 
+                    (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0 + 30.0
+                ),
             },
             enemy_score: 0,
             simulated: false,
@@ -85,34 +91,63 @@ impl GameState {
         }
     }
 
+    /// Check for ball-paddle collision with the given paddle
+    fn check_intersects(ball: &Ball, paddle: &Paddle) -> bool{
+        // // bouncing off paddle horizontally
+        // if ball.position[1] + (ball.ball_texture.height() as f32)  >= paddle.position[1] && ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32){
+        //     if ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0] && (ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
+        //         ball.velocity[0] = -ball.velocity[0];
+        //         println!("Bounced off paddle horizontally!");
+        //     }
+        // }
 
-    /// Check for ball-paddle collision with the given paddle and update the ball's velocity vector accordingly
-    fn update_collision(ball: &mut Ball, paddle: &Paddle){
-        // bouncing off paddle horizontally
-        if ball.position[1] + (ball.ball_texture.height() as f32)  >= paddle.position[1] && ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32){
-            if ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0] && (ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
-                ball.velocity[0] = -ball.velocity[0];
-                println!("Bounced off paddle horizontally!");
-            }
-        }
-
-        // bouncing off paddle vertically
-        if (ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0]) && (ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
-            if (ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32)) && (ball.position[1] + (ball.ball_texture.height() as f32) >= paddle.position[1]) {
-                // ball.velocity[1] = -ball.velocity[1];
-                ball.velocity[0] = -ball.velocity[0];
-                println!("Bounced off paddle vertically!");
+        // // bouncing off paddle vertically
+        // if (ball.position[0] + (ball.ball_texture.width() as f32) >= paddle.position[0]) && (ball.position[0] <= paddle.position[0] + (paddle.paddle_texture.width() as f32)){
+        //     if (ball.position[1] <= paddle.position[1] + (paddle.paddle_texture.height() as f32)) && (ball.position[1] + (ball.ball_texture.height() as f32) >= paddle.position[1]) {
+        //         // ball.velocity[1] = -ball.velocity[1];
+        //         ball.velocity[0] = -ball.velocity[0];
+        //         println!("Bounced off paddle vertically!");
 
 
-            }
-        }
+        //     }
+        // }
+        
+        // check if ball's centre point is inside paddle rectangle:
+        // method adapted from: https://stackoverflow.com/a/2763387/5013267
+        // let ab = Vec2::new(paddle.paddle_texture.width() as f32, 0.0); // vector a->b
+        let ab = (paddle.position + (paddle.paddle_texture.width() as f32, 0.0)) - paddle.position;
+        let bc = Vec2::new(0.0, paddle.paddle_texture.height() as f32); // vector b->c
+
+        let m = (ball.position + Vec2::new(ball.ball_texture.width() as f32, ball.ball_texture.height() as f32))/2.0;
+        // println!("{}", m);
+
+        // let mut intersects = true;
+        let ab_dot_am = ab.dot(m - paddle.position);
+        // println!("{}", ab_dot_am);
+        // println!("{}", m - paddle.position);
+        println!("{} - {} = {} ", m, paddle.position, m - paddle.position);
+        // intersects &= ab_dot_am >= 0.0 && ab_dot_am <= ab.dot(ab);
+
+        let bc_dot_bm = bc.dot(m - (paddle.position + (paddle.paddle_texture.width() as f32, 0.0)));
+        // intersects &= bc_dot_bm >= 0.0 && bc_dot_bm <= bc.dot(bc);
+        // println!("{}, {}", ab_dot_am >= 0.0 && ab_dot_am <= ab.dot(ab), bc_dot_bm >= 0.0 && bc_dot_bm <= bc.dot(bc));
+
+        0.0 <= ab_dot_am && ab_dot_am <= ab.dot(ab)
+        && 0.0 <= bc_dot_bm && bc_dot_bm <= bc.dot(bc)  // return value
     }
 
     fn update_ball(&mut self, ctx: &mut Context){
         self.ball.position += self.ball.velocity;
 
-        GameState::update_collision(&mut self.ball, &self.enemy_paddle);
-        GameState::update_collision(&mut self.ball, &self.player_paddle);
+        // GameState::update_collision(&mut self.ball, &self.enemy_paddle);
+        // GameState::update_collision(&mut self.ball, &self.player_paddle);
+        // if GameState::check_intersects(&self.ball, &self.enemy_paddle) {
+        //     println!("WOOOO enemy paddle!!");
+        // }
+
+        if GameState::check_intersects(&self.ball, &self.player_paddle) {
+            println!("WOOOO player paddle!!");
+        }
 
         // walls
         // bouncing off top and bottom walls
