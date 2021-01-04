@@ -16,11 +16,17 @@ const BALL_SPEED: f32 = PADDLE_SPEED/2.0;
 const PADDLE_SPIN: f32 = 3.0;
 const BALL_ACC: f32 = 0.005;
 
+// AI constants
+const AI_ENABLED: bool = true;
+const AI_ITERS: u32 = 10;
+
+#[derive(Clone)]
 struct Paddle {
     paddle_texture: Texture,
     position: Vec2<f32>,    
 }
 
+#[derive(Clone)]
 struct Ball {
     ball_texture: Texture,
     position: Vec2<f32>,    
@@ -99,11 +105,13 @@ impl GameState {
             self.player_paddle.position.y += PADDLE_SPEED;
         }
 
-        if input::is_key_down(ctx, Key::O) {
-            self.enemy_paddle.position.y -= PADDLE_SPEED;
-        }
-        if input::is_key_down(ctx, Key::L) {
-            self.enemy_paddle.position.y += PADDLE_SPEED;
+        if !AI_ENABLED {
+            if input::is_key_down(ctx, Key::O) {
+                self.enemy_paddle.position.y -= PADDLE_SPEED;
+            }
+            if input::is_key_down(ctx, Key::L) {
+                self.enemy_paddle.position.y += PADDLE_SPEED;
+            }
         }
     }
 
@@ -130,11 +138,11 @@ impl GameState {
 
             let offset = (paddle.position.y - ball.position.y) / paddle.paddle_texture.height() as f32;
             ball.velocity.y += PADDLE_SPIN * -offset;
-            println!("woo");
         }
     }
 
     fn update_ball(&mut self, _ctx: &mut Context){
+        self.update_AI(_ctx);
         self.ball.position += self.ball.velocity;
 
         GameState::update_collision(&mut self.ball, &self.player_paddle);
@@ -159,10 +167,35 @@ impl GameState {
 
             // reset ball to centre
             self.ball.reset();
-            
+
             // reset ball speed (but not direction)
             self.ball.velocity = self.ball.velocity.normalized() * BALL_SPEED;
         }
+    }
+
+    fn update_AI(&mut self, ctx: &mut Context){
+        if self.simulated || !AI_ENABLED {
+            return;
+        }
+
+        // created a simulated GameState, cloned from real GameState
+        println!("Created sim {:p}", &self);
+        let mut sim = GameState {
+            ball: self.ball.clone(),
+            player_paddle: self.player_paddle.clone(),
+            player_score: self.player_score,
+            enemy_paddle: self.enemy_paddle.clone(),
+            enemy_score: self.enemy_score,
+            simulated: true,
+        };
+
+        for i in 0..AI_ITERS {
+            sim.update(ctx).expect("bruh moment when updating sim");
+            sim.draw(ctx).expect("bruh moment when drawing sim");
+            println!("\t Sim iteration: {}", i);
+        }
+        println!("Byebye sim");
+        // self.simulated = true;
     }
 }
 
