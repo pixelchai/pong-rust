@@ -11,15 +11,19 @@ const FONT_SIZE: f32 = 32.0;
 const PADDING: f32 = FONT_SIZE;
 
 // gameplay consts
-const PADDLE_SPEED: f32 = 10.0;
+const PADDLE_SPEED: f32 = 14.0;
 const BALL_SPEED: f32 = PADDLE_SPEED/2.0;
 const PADDLE_SPIN: f32 = 3.0;
 const BALL_ACC: f32 = 0.005;
 
 // AI constants
 const AI_ENABLED: bool = true;
-const AI_MAX_ITERS: u32 = 900; // Experimentation results: around 800 is probably more than sufficient,
+const AI_MAX_ITERS: u32 = 400; // Experimentation results: around 800 is more than sufficient,
                                // 400 is quite good though is insufficient for a short time after ball leaves enemy paddle
+const AI_WAIT_FOR_PLAYER_HIT: bool = true;  // wait for the player to hit the ball first before calculating solution
+                                            // (= will not have to guess the player's angle of attack)
+                                            // NB: if waiting for player hit, max iters may be set to a lower value
+const EPSILON: f32 = 1.0;
 
 #[derive(Clone)]
 struct Paddle {
@@ -66,9 +70,10 @@ impl GameState {
         let mut ball = Ball {
             ball_texture,
             position: Vec2::new(0.0, 0.0),
-            velocity: Vec2::new(BALL_SPEED, BALL_SPEED),
+            velocity: Vec2::new(1.0, 1.0),
         };
         ball.reset();  // initialise ball's position
+        ball.velocity = ball.velocity.normalized() * BALL_SPEED; // init ball speed
 
         // calculate paddle initial y
         let paddle_initial_y = (SCREEN_HEIGHT as f32)/2.0 - (paddle_texture.height() as f32)/2.0;
@@ -185,7 +190,7 @@ impl GameState {
             } else {
                 // bounced off right wall
                 self.enemy_score += 1;
-                self.ball.velocity = Vec2::new(BALL_SPEED, BALL_SPEED);
+                self.ball.velocity = Vec2::new(1.0, 1.0); // setting direction
             }
 
             // reset ball to centre
@@ -201,7 +206,12 @@ impl GameState {
             return;
         }
 
-        // created a simulated GameState, cloned from real GameState
+        if AI_WAIT_FOR_PLAYER_HIT && self.ball.velocity.x >= 0.0 {
+            // ball vel.x >= 0.0 implies ball moving towards player still, and has not been returned yet
+            return;
+        }
+
+        // create a simulation GameState, cloned from real GameState
         let mut sim = GameState {
             ball: self.ball.clone(),
             player_paddle: self.player_paddle.clone(),
@@ -215,10 +225,22 @@ impl GameState {
         for i in 0..AI_MAX_ITERS {
             if !sim.enemy_hit {
                 sim.update(ctx).expect("bruh moment when updating sim");
-                // sim.draw(ctx).expect("bruh moment when drawing sim");
+                // sim.draw(ctx).expect("bruh moment when drawing sim"); // NB: only for debug -- rendering here slows down program signficantly
             } else {
                 // if enemy_hit, stop iterating: found solution
-                println!("Found sol!! {}", self.ball.position.x);
+                // TODO: maybe implement solution caching 
+                //       (but low prio because solution prediction is variable anyway [depends on other player's angle of attack])
+
+                let target_y = sim.ball.position.y + (sim.ball.ball_texture.height() as f32)/2.0 
+                               - (self.enemy_paddle.paddle_texture.height() as f32)/2.0;
+                
+                let delta = target_y - self.enemy_paddle.position.y;
+                
+                if delta.abs() > EPSILON {
+                    self.enemy_paddle.position.y += (delta.abs()).min(PADDLE_SPEED).copysign(delta);
+                } else {
+                    self.enemy_paddle.position.y = target_y;
+                }
                 break;
             }
         }
